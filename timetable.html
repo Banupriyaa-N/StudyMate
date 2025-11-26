@@ -1,75 +1,331 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Timetable | StudyMate</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <meta charset="utf-8" />
+  <title>Timetable Manager | CampusConnect</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0e1a35;
+      --card: #143a60;
+      --accent: #1c5a92;
+      --muted: #aad4ff;
+      --text: #fff;
+    }
+    
+    *{box-sizing:border-box}
+    body {
+      margin:0;
+      font-family:'Poppins',sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      display:flex;
+      justify-content:center;
+      padding:36px 12px;
+    }
+    .wrap { width:100%; max-width:760px; }
+    header { text-align:center; margin-bottom:28px; }
+    header h1 { font-size:34px; margin:0; }
+    header p { color:var(--muted); margin-top:8px; }
+    .card {
+      background: linear-gradient(180deg,var(--card), #0f355f);
+      padding:22px;
+      border-radius:12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+      margin-bottom:18px;
+    }
+    .form {
+      display:flex;
+      gap:12px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .form input[type="text"], .form input[type="time"] {
+      padding:12px 14px; border-radius:10px; border:none;
+      background:#ffffff10; color:var(--text); font-size:15px;
+      min-width:180px; flex:1;
+    }
+    .btn {
+      background:var(--accent);
+      color:white;
+      border:none;
+      padding:12px 18px;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    .btn:hover { opacity:0.95; }
+    h2 { text-align:center; margin:18px 0; font-size:22px; }
+    #timetableList { display:flex; flex-direction:column; gap:10px; }
+    .entry {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:12px;
+      border-radius:10px;
+      background: rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.04);
+    }
+    .entry-left { display:flex; gap:14px; align-items:center; min-width:0; }
+    .subject { font-weight:600; font-size:16px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; max-width:320px; }
+    .time { color:var(--muted); font-size:14px; }
+    .actions { display:flex; gap:8px; align-items:center; }
+    .small { padding:8px 10px; border-radius:8px; border:none; font-weight:600; cursor:pointer; }
+    .edit-btn { background:#2a9df4; color:white; }
+    .save-btn { background:#17a34a; color:white; }
+    .cancel-btn { background:#888; color:white; }
+    .delete-btn { background:#ff4d6d; color:white; }
+    input.edit-subject, input.edit-time {
+      padding:8px 10px; border-radius:8px; border:none; background:#ffffff12; color:var(--text);
+      font-size:14px;
+    }
+    .empty { text-align:center; color:var(--muted); padding:18px; border-radius:8px; background: rgba(255,255,255,0.01); }
+    @media(max-width:560px){
+      .form { flex-direction:column; align-items:stretch; }
+      .subject { max-width:180px; }
+    }
+  </style>
 </head>
-<script>
-    // Array to store timetable entries
-    let timetable = [];
-
-    function addClass() {
-        const subject = document.getElementById("subject").value;
-        const time = document.getElementById("time").value;
-
-        if (subject === "" || time === "") {
-            alert("Please enter both subject and time");
-            return;
-        }
-
-        // Add the new class to our array
-        timetable.push({ subject, time });
-
-        // Clear input fields
-        document.getElementById("subject").value = "";
-        document.getElementById("time").value = "";
-
-        // Refresh the displayed timetable
-        displayTimetable();
-    }
-
-    function displayTimetable() {
-        const listDiv = document.getElementById("timetable-list");
-        listDiv.innerHTML = ""; // Clear previous data
-
-        timetable.forEach((item, index) => {
-            listDiv.innerHTML += `
-                <div style="
-                    background:#ffffff10;
-                    padding:12px;
-                    margin-top:8px;
-                    border-radius:8px;
-                    color:white;
-                ">
-                    <strong>${item.subject}</strong> — ${item.time}
-                </div>
-            `;
-        });
-    }
-</script>
 <body>
-<header>
-    <h1>🗓 Timetable Manager</h1>
-    <p class="tagline">Add your daily schedule and manage time effortlessly.</p>
-</header>
+  <div class="wrap">
 
-<div class="form-container">
-    <input type="text" id="subject" placeholder="Subject Name">
-    <input type="text" id="time" placeholder="Time (e.g., 10:00 AM)">
-    <button onclick="addClass()">Add Class</button>
-</div>
+    <header>
+      <h1>🗓 Timetable Manager</h1>
+      <p>Add your daily schedule and manage time effortlessly.</p>
+    </header>
 
-<h2 style="margin-top: 35px;">Today's Timetable</h2>
-<div id="timetable-list"></div>
-<ul id="timetableList"></ul>
+    <div class="card">
+      <div class="form">
+        <input id="subjectInput" type="text" placeholder="Subject Name (e.g., DBMS)">
+        <!-- using time input; you can also accept text like "10:00 AM" -->
+        <input id="timeInput" type="time" placeholder="Time (e.g., 10:00)">
+        <button id="addBtn" class="btn">Add Class</button>
+      </div>
+      <div style="margin-top:10px; color:var(--muted); font-size:13px;">Tip: Click Edit to change subject or time, then Save to persist.</div>
+    </div>
 
-<br>
-<a href="index.html" class="back-btn">⬅ Back to Home</a>
+    <h2>Today's Timetable</h2>
+    <div id="timetableList" class="card" style="padding:16px;"></div>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-<script src="firebase.js"></script>
-<script src="app.js"></script>
+    <div style="text-align:center; margin-top:14px;">
+      <a href="index.html" style="color:var(--muted); text-decoration:underline;">⬅ Back to Home</a>
+    </div>
+
+  </div>
+
+<script>
+    
+  // LocalStorage key
+  const STORAGE_KEY = 'campusconnect_timetable_v1';
+
+  // load or create
+  let timetable = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+  const subjectInput = document.getElementById('subjectInput');
+  const timeInput = document.getElementById('timeInput');
+  const addBtn = document.getElementById('addBtn');
+  const listEl = document.getElementById('timetableList');
+
+  // Utility: format time "HH:MM" -> "HH:MM AM/PM"
+  function formatTimeHM(hm) {
+    if(!hm) return '';
+    const [hh, mm] = hm.split(':').map(Number);
+    let suffix = 'AM';
+    let hour = hh;
+    if (hh === 0) { hour = 12; suffix = 'AM'; }
+    else if (hh === 12) { hour = 12; suffix = 'PM'; }
+    else if (hh > 12) { hour = hh - 12; suffix = 'PM'; }
+    return `${String(hour).padStart(2,'0')}:${String(mm).padStart(2,'0')} ${suffix}`;
+  }
+
+  // Save timetable to localStorage
+  function saveTimetable() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(timetable));
+  }
+
+  // Add a class (new entry)
+  function addClass() {
+    const subject = subjectInput.value.trim();
+    const time = timeInput.value; // HH:MM (24h) or empty
+
+    if (!subject) {
+      alert('Enter subject name');
+      return;
+    }
+
+    // create entry with unique id
+    const entry = {
+      id: Date.now(), // simple unique id
+      subject,
+      time: time || null,
+      createdAt: new Date().toISOString()
+    };
+
+    timetable.push(entry);
+    saveTimetable();
+    render();
+    subjectInput.value = '';
+    timeInput.value = '';
+  }
+
+  // Render the timetable list
+  function render() {
+    listEl.innerHTML = '';
+    if (timetable.length === 0) {
+      listEl.innerHTML = '<div class="empty">No classes yet. Add a class above.</div>';
+      return;
+    }
+
+    timetable.forEach(entry => {
+      const row = document.createElement('div');
+      row.className = 'entry';
+
+      const left = document.createElement('div');
+      left.className = 'entry-left';
+
+      // subject display (or input if editing)
+      const subjDiv = document.createElement('div');
+      subjDiv.className = 'subject';
+      subjDiv.textContent = entry.subject;
+
+      // time display
+      const timeDiv = document.createElement('div');
+      timeDiv.className = 'time';
+      timeDiv.textContent = entry.time ? formatTimeHM(entry.time) : 'Time not set';
+
+      left.appendChild(subjDiv);
+      left.appendChild(timeDiv);
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+
+      // Edit button
+      const editBtn = document.createElement('button');
+      editBtn.className = 'small edit-btn';
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = () => startEdit(entry.id, row);
+
+      // Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'small delete-btn';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.onclick = () => {
+        if (confirm('Delete this class?')) {
+          timetable = timetable.filter(e => e.id !== entry.id);
+          saveTimetable();
+          render();
+        }
+      };
+
+      actions.appendChild(editBtn);
+      actions.appendChild(deleteBtn);
+
+      row.appendChild(left);
+      row.appendChild(actions);
+
+      listEl.appendChild(row);
+    });
+  }
+
+  // Start inline edit: replaces row content with inputs + Save/Cancel
+  function startEdit(id, rowElement) {
+    const entry = timetable.find(e => e.id === id);
+    if (!entry) return;
+
+    // Clear row and build edit UI
+    rowElement.innerHTML = '';
+
+    const left = document.createElement('div');
+    left.style.display = 'flex';
+    left.style.gap = '12px';
+    left.style.alignItems = 'center';
+    left.style.minWidth = '0';
+
+    // subject input
+    const subjInput = document.createElement('input');
+    subjInput.className = 'edit-subject';
+    subjInput.type = 'text';
+    subjInput.value = entry.subject;
+    subjInput.style.minWidth = '160px';
+
+    // time input (type=time)
+    const timeInputEl = document.createElement('input');
+    timeInputEl.className = 'edit-time';
+    timeInputEl.type = 'time';
+    timeInputEl.value = entry.time || '';
+
+    left.appendChild(subjInput);
+    left.appendChild(timeInputEl);
+
+    // actions: Save, Cancel, Delete
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'small save-btn';
+    saveBtn.textContent = 'Save';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'small cancel-btn';
+    cancelBtn.textContent = 'Cancel';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'small delete-btn';
+    deleteBtn.textContent = 'Delete';
+
+    // Save handler
+    saveBtn.onclick = () => {
+      const newSubj = subjInput.value.trim();
+      const newTime = timeInputEl.value || null;
+      if (!newSubj) {
+        alert('Subject cannot be empty.');
+        return;
+      }
+      // update entry
+      entry.subject = newSubj;
+      entry.time = newTime;
+      entry.updatedAt = new Date().toISOString();
+      saveTimetable();
+      render();
+    };
+
+    // Cancel handler: just re-render (restores display)
+    cancelBtn.onclick = () => render();
+
+    deleteBtn.onclick = () => {
+      if (confirm('Delete this class?')) {
+        timetable = timetable.filter(e => e.id !== id);
+        saveTimetable();
+        render();
+      }
+    };
+
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+    actions.appendChild(deleteBtn);
+
+    rowElement.appendChild(left);
+    rowElement.appendChild(actions);
+
+    // focus subject input for convenience
+    subjInput.focus();
+    subjInput.select();
+  }
+
+  // Attach event
+  addBtn.addEventListener('click', addClass);
+
+  // Optional: Enter key in subject input adds class
+  subjectInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addClass();
+  });
+  timeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addClass();
+  });
+
+  // initial render
+  render();
+</script>
 </body>
 </html>
