@@ -1,0 +1,100 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Poppins', sans-serif;
+    background: #0e1a35;
+    color: white;
+    text-align: center;
+}
+
+header {
+    padding: 35px 0;
+}
+.tagline {
+    font-size: 18px;
+    margin-top: 8px;
+    color: #aad4ff;
+}
+
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 50px;
+    gap: 20px;
+}
+
+.card {
+    background: #143a60;
+    width: 260px;
+    padding: 25px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: white;
+    font-size: 18px;
+    transition: 0.3s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+}
+.card:hover {
+    background: #1c5a92;
+    transform: translateY(-6px);
+}
+
+.card i {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+}
+
+footer {
+    margin-top: 60px;
+    padding: 15px;
+    font-size: 14px;
+    color: #c7dfff;
+}
+.form-container {
+    margin: 30px auto;
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.form-container input {
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+}
+
+.form-container button {
+    padding: 12px;
+    background: #1c5a92;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    transition: 0.3s;
+    cursor: pointer;
+}
+.form-container button:hover {
+    background: #2577c9;
+}
+
+#timetableList {
+    list-style: none;
+    margin-top: 18px;
+    padding: 0;
+}
+
+#timetableList li {
+    background: #143a60;
+    padding: 12px;
+    margin: 8px auto;
+    width: 70%;
+    border-radius: 8px;
+}
+
+.back-btn {
+    color: #aad4ff;
+    display: inline-block;
+    margin-top: 20px;
+}
