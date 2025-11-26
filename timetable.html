@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timetable | StudyMate</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<script>
+    // Array to store timetable entries
+    let timetable = [];
+
+    function addClass() {
+        const subject = document.getElementById("subject").value;
+        const time = document.getElementById("time").value;
+
+        if (subject === "" || time === "") {
+            alert("Please enter both subject and time");
+            return;
+        }
+
+        // Add the new class to our array
+        timetable.push({ subject, time });
+
+        // Clear input fields
+        document.getElementById("subject").value = "";
+        document.getElementById("time").value = "";
+
+        // Refresh the displayed timetable
+        displayTimetable();
+    }
+
+    function displayTimetable() {
+        const listDiv = document.getElementById("timetable-list");
+        listDiv.innerHTML = ""; // Clear previous data
+
+        timetable.forEach((item, index) => {
+            listDiv.innerHTML += `
+                <div style="
+                    background:#ffffff10;
+                    padding:12px;
+                    margin-top:8px;
+                    border-radius:8px;
+                    color:white;
+                ">
+                    <strong>${item.subject}</strong> — ${item.time}
+                </div>
+            `;
+        });
+    }
+</script>
+<body>
+<header>
+    <h1>🗓 Timetable Manager</h1>
+    <p class="tagline">Add your daily schedule and manage time effortlessly.</p>
+</header>
+
+<div class="form-container">
+    <input type="text" id="subject" placeholder="Subject Name">
+    <input type="text" id="time" placeholder="Time (e.g., 10:00 AM)">
+    <button onclick="addClass()">Add Class</button>
+</div>
+
+<h2 style="margin-top: 35px;">Today's Timetable</h2>
+<div id="timetable-list"></div>
+<ul id="timetableList"></ul>
+
+<br>
+<a href="index.html" class="back-btn">⬅ Back to Home</a>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="firebase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
