@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Assignments | CampusConnect (Reminders)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0e2340; --card:#143a60; --accent:#1c5a92; --muted:#aacff7;
+    }
+    *{box-sizing:border-box}
+    body{
+      font-family:'Poppins',sans-serif;
+      background:linear-gradient(180deg,var(--bg),#07122a);
+      color:#fff;
+      margin:0;
+      padding:30px 12px;
+      display:flex;
+      justify-content:center;
+    }
+    .wrap{ width:100%; max-width:760px; }
+    header{ text-align:center; margin-bottom:22px; }
+    header h1{font-size:34px;margin:0}
+    header p{color:var(--muted); margin:6px 0 0}
+
+    .card{ background:var(--card); padding:20px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,0.35); margin-bottom:18px; }
+
+    .form-grid{ display:grid; grid-template-columns: 1fr 220px; gap:12px; }
+
+    input[type="text"], input[type="date"], button, .select { width:100%; padding:12px 14px; border-radius:10px; border:none; font-size:15px; }
+    input[type="text"], input[type="date"]{ background:#ffffff10; color:white; }
+
+    .btn{ background:var(--accent); color:#fff; cursor:pointer; border:none; }
+    .btn:hover{opacity:0.95}
+
+    h2{margin:18px 0 8px;font-size:22px;text-align:center}
+    .list { margin-top:10px; display:flex; flex-direction:column; gap:10px; }
+    .item {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px; border-radius:10px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.04);
+    }
+    .left { display:flex; gap:12px; align-items:center; min-width:0; }
+    .meta { min-width:0; }
+    .subject { font-weight:600; font-size:16px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+    .due { color:var(--muted); font-size:13px; margin-top:4px; }
+    .actions { display:flex; gap:8px; align-items:center; }
+    .small-btn { padding:8px 10px; border-radius:8px; border:none; cursor:pointer; font-weight:600; }
+    .done { background:#17a34a; color:white; }
+    .not-done { background:#ffb703; color:#111; }
+    .delete { background:#ff4d6d; color:white; }
+    .status-badge { padding:6px 8px; border-radius:8px; font-weight:600; font-size:13px; }
+    .completed { background: rgba(23,163,74,0.12); color:#17a34a; border:1px solid rgba(23,163,74,0.16); }
+    .pending { background: rgba(255,183,3,0.08); color:#ffb703; border:1px solid rgba(255,183,3,0.12); }
+    .reminder { background: rgba(255, 77, 103, 0.08); color: #ff4d6d; border:1px solid rgba(255,77,103,0.12); }
+
+    .empty { text-align:center; color:var(--muted); padding:18px; }
+    .controls { display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+    .toggle-label { font-size:14px; color:var(--muted); display:flex; gap:8px; align-items:center; }
+    .toggle { width:44px; height:24px; background:#ffffff10; border-radius:14px; position:relative; cursor:pointer; }
+    .knob { width:18px; height:18px; background:white; border-radius:50%; position:absolute; top:3px; left:3px; transition:all .18s ease; }
+    .toggle.on { background:#1c5a92; }
+    .toggle.on .knob { left:23px; }
+
+    @media(max-width:600px){
+      .form-grid { grid-template-columns: 1fr; }
+      .actions { flex-wrap:wrap; gap:6px; }
+    }
+  </style>
+</head>
+<script>
+    let assignment = [];
+
+    function addAssignment() {
+        const topic = document.getElementById("assignment").value;
+        const date = document.getElementById("dueDate").value;
+
+        if (topic === "" || date === "") {
+            alert("Please enter both topic and due date.");
+            return;
+        }
+
+        assignments.push({
+            topic: topic,
+            dueDate: date,
+            completed: false
+        });
+
+        // clear fields
+        document.getElementById("assignment").value = "";
+        document.getElementById("dueDate").value = "";
+
+        displayAssignments();
+    }
+
+    function displayAssignments() {
+        const list = document.getElementById("assignment-list");
+        list.innerHTML = "";
+
+        const today = new Date();
+
+        assignments.forEach((item, index) => {
+            let due = new Date(item.dueDate);
+            let msDiff = due - today;
+            let daysLeft = Math.ceil(msDiff / (1000 * 60 * 60 * 24));
+
+            let statusText = "";
+            let statusColor = "";
+
+            if (item.completed) {
+                statusText = "✔ Completed";
+                statusColor = "#00ff99";
+            } 
+            else if (daysLeft < 0) {
+                statusText = "⛔ Deadline Passed";
+                statusColor = "#ff4444";
+            }
+            else if (daysLeft === 0) {
+                statusText = "⚠ Due Today!";
+                statusColor = "#ffaa00";
+            }
+            else if (daysLeft <= 3) {
+                statusText = `⏰ Reminder: ${daysLeft} day(s) left`;
+                statusColor = "#ffcc00";
+            } 
+            else {
+                statusText = `${daysLeft} days left`;
+                statusColor = "#b0e0ff";
+            }
+
+            list.innerHTML += `
+                <div style="
+                    background:#ffffff15;
+                    padding:12px;
+                    border-radius:10px;
+                    margin-top:12px;
+                    color:white;
+                ">
+                    <strong>${item.topic}</strong>  
+                    <br>
+                    Due Date: ${item.dueDate}
+                    <br>
+                    <span style="color:${statusColor}; font-weight:600;">
+                        ${statusText}
+                    </span>
+                    <br><br>
+                    <button onclick="toggleComplete(${index})" 
+                        style="
+                            background:#2196f3;
+                            color:white;
+                            padding:6px 10px;
+                            border:none;
+                            border-radius:6px;
+                            cursor:pointer;
+                        ">
+                        ${item.completed ? "Mark as Not Done" : "Mark as Done"}
+                    </button>
+                </div>
+            `;
+        });
+    }
+
+    function toggleComplete(i) {
+        assignments[i].completed = !assignments[i].completed;
+        displayAssignments();
+    }
+</script>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>📚 Assignment Tracker</h1>
+      <p>Never miss a deadline again. (Reminders enabled)</p>
+    </header>
+
+    <div class="card">
+      <div class="form-grid">
+        <input id="topic" type="text" placeholder="Assignment Topic">
+        <input id="dueDate" type="date" title="dd-mm-yyyy">
+      </div>
+      <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <button class="btn" id="addBtn">Add Assignment</button>
+        <button class="btn" id="clearAll" style="background:#c0392b">Clear All</button>
+
+        <div class="controls" style="margin-left:auto;">
+          <label class="toggle-label">Browser notifications</label>
+          <div id="notifToggle" class="toggle" title="Enable browser notifications">
+            <div class="knob"></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px; color:var(--muted); font-size:13px;">
+        Tip: Allow notifications when the browser asks so you get reminders even if the tab is not focused.
+      </div>
+    </div>
+
+    <h2>Pending Assignments</h2>
+    <div id="list" class="list card"></div>
+
+    <div style="text-align:center; margin-top:16px;">
+      <a href="index.html" style="color:var(--muted); text-decoration:underline;">⬅ Back to Home</a>
+    </div>
+  </div>
+
+<script>
+  // --- STORAGE KEYS ---
+  const STORAGE_KEY = 'assignments_v1';
+  const NOTIF_KEY = 'assignments_notif_enabled_v1';
+
+  // --- LOAD DATA ---
+  let assignments = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  let notifEnabled = JSON.parse(localStorage.getItem(NOTIF_KEY) || 'false');
+
+  const listEl = document.getElementById('list');
+  const topicEl = document.getElementById('topic');
+  const dateEl = document.getElementById('dueDate');
+  const addBtn = document.getElementById('addBtn');
+  const clearAll = document.getElementById('clearAll');
+  const notifToggle = document.getElementById('notifToggle');
+
+  // utility: format date nicely
+  function formatDateISO(iso) {
+    if(!iso) return '';
+    const d = new Date(iso + 'T00:00:00'); // avoid TZ shifting
+    const opts = { year: 'numeric', month: 'short', day: 'numeric' };
+    return d.toLocaleDateString(undefined, opts);
+  }
+
+  // utility: days left from today to due date
+  function daysLeft(iso) {
+    if(!iso) return Infinity;
+    const today = new Date();
+    // zero out times
+    const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const target = new Date(iso + 'T00:00:00');
+    const diff = target - t0;
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  }
+
+  // send browser notification (if allowed)
+  function sendNotification(title, body) {
+    if(!('Notification' in window)) return;
+    if(Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '' });
+    }
+  }
+
+  // request permission when toggling on
+  function requestNotificationPermissionIfNeeded() {
+    if(Notification.permission === 'default') {
+      Notification.requestPermission().then(perm => {
+        if(perm !== 'granted') {
+          alert('Notifications blocked. You can enable them in browser settings.');
+          notifEnabled = false;
+          updateToggleUI();
+          localStorage.setItem(NOTIF_KEY, JSON.stringify(false));
+        } else {
+          notifEnabled = true;
+          updateToggleUI();
+          localStorage.setItem(NOTIF_KEY, JSON.stringify(true));
+        }
+      });
+    }
+  }
+
+  // update the toggle visual state
+  function updateToggleUI() {
+    if(notifEnabled) {
+      notifToggle.classList.add('on');
+      notifToggle.title = 'Notifications enabled';
+    } else {
+      notifToggle.classList.remove('on');
+      notifToggle.title = 'Notifications disabled';
+    }
+  }
+
+  // render assignments UI
+  function render() {
+    listEl.innerHTML = '';
+    if(assignments.length === 0) {
+      listEl.innerHTML = '<div class="empty">No assignments yet. Add one above!</div>';
+      return;
+    }
+
+    assignments.forEach((a, i) => {
+      const item = document.createElement('div');
+      item.className = 'item';
+
+      const left = document.createElement('div');
+      left.className = 'left';
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+
+      const subj = document.createElement('div');
+      subj.className = 'subject';
+      subj.textContent = a.topic;
+
+      const due = document.createElement('div');
+      due.className = 'due';
+      const dl = daysLeft(a.due);
+      let dueText = a.due ? formatDateISO(a.due) : 'No date';
+      if (a.due) {
+        if(dl < 0) dueText += ' — (PAST)';
+        else if(dl === 0) dueText += ' — (Today)';
+        else if(dl === 1) dueText += ' — (Tomorrow)';
+        else dueText += ` — (${dl} days left)`;
+      }
+
+      due.textContent = 'Due: ' + dueText;
+      meta.appendChild(subj);
+      meta.appendChild(due);
+      left.appendChild(meta);
+
+      const right = document.createElement('div');
+      right.className = 'actions';
+
+      // status badge (completed / pending / reminder)
+      const statusBadge = document.createElement('div');
+      // Decide badge class: completed -> completed, pending but soon -> reminder, else pending
+      const soon = (a.due && daysLeft(a.due) <= 2 && daysLeft(a.due) >= 0 && !a.done);
+      if(a.done) {
+        statusBadge.className = 'status-badge completed';
+        statusBadge.textContent = 'COMPLETED';
+      } else if(soon) {
+        statusBadge.className = 'status-badge reminder';
+        statusBadge.textContent = 'DUE SOON';
+      } else {
+        statusBadge.className = 'status-badge pending';
+        statusBadge.textContent = 'PENDING';
+      }
+
+      // toggle done/undone
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'small-btn ' + (a.done ? 'not-done' : 'done');
+      toggleBtn.textContent = a.done ? 'Mark Undone' : 'Mark Done';
+      toggleBtn.onclick = () => {
+        assignments[i].done = !assignments[i].done;
+        assignments[i].lastToggledAt = new Date().toISOString();
+        saveAndRender();
+      };
+
+      // delete button
+      const delBtn = document.createElement('button');
+      delBtn.className = 'small-btn delete';
+      delBtn.textContent = 'Delete';
+      delBtn.onclick = () => {
+        if(confirm('Delete this assignment?')) {
+          assignments.splice(i,1);
+          saveAndRender();
+        }
+      };
+
+      right.appendChild(statusBadge);
+      right.appendChild(toggleBtn);
+      right.appendChild(delBtn);
+
+      item.appendChild(left);
+      item.appendChild(right);
+      listEl.appendChild(item);
+
+      // If it's due soon and notifications enabled, trigger notification
+      if(soon && notifEnabled) {
+        // To avoid spamming, we store a "remindedOn" date in assignment object:
+        const lastReminded = a.remindedOn || null;
+        const todayStr = new Date().toISOString().slice(0,10);
+        if(lastReminded !== todayStr) {
+          // mark reminded today
+          assignments[i].remindedOn = todayStr;
+          // schedule tiny delay to ensure render completes
+          setTimeout(()=> {
+            sendNotification('Assignment due soon: ' + a.topic, 'Due ' + formatDateISO(a.due) + (daysLeft(a.due) === 0 ? ' (Today)' : ' in ' + daysLeft(a.due) + ' day(s)'));
+            saveAndRender(); // persist remindedOn
+          }, 300);
+        }
+      }
+    });
+  }
+
+  // save to localStorage then render
+  function saveAndRender(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(assignments));
+    render();
+  }
+
+  // event listeners
+  addBtn.addEventListener('click', () => {
+    const topic = topicEl.value.trim();
+    const due = dateEl.value; // ISO yyyy-mm-dd
+    if(topic === '') {
+      alert('Please enter assignment topic');
+      return;
+    }
+    assignments.push({ topic, due: due || null, done: false, createdAt: new Date().toISOString(), remindedOn: null });
+    topicEl.value = '';
+    dateEl.value = '';
+    saveAndRender();
+  });
+
+  clearAll.addEventListener('click', () => {
+    if(!assignments.length) return alert('No assignments to clear');
+    if(confirm('Clear ALL assignments?')) {
+      assignments = [];
+      saveAndRender();
+    }
+  });
+
+  // notification toggle UI and logic
+  notifToggle.addEventListener('click', () => {
+    if(!notifEnabled) {
+      // user turning ON
+      if('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(perm => {
+          if(perm === 'granted') {
+            notifEnabled = true;
+            localStorage.setItem(NOTIF_KEY, JSON.stringify(true));
+            updateToggleUI();
+            // optionally notify user immediately that notifications are enabled
+            sendNotification('Notifications enabled', 'You will receive reminders for assignments due soon.');
+          } else {
+            alert('Notifications blocked or denied. Enable from browser settings to receive reminders.');
+            notifEnabled = false;
+            updateToggleUI();
+            localStorage.setItem(NOTIF_KEY, JSON.stringify(false));
+          }
+        });
+      } else if('Notification' in window && Notification.permission === 'granted') {
+        notifEnabled = true;
+        localStorage.setItem(NOTIF_KEY, JSON.stringify(true));
+        updateToggleUI();
+      } else {
+        // no Notification support
+        alert('Your browser does not support notifications.');
+        notifEnabled = false;
+        updateToggleUI();
+      }
+    } else {
+      // turning OFF
+      notifEnabled = false;
+      localStorage.setItem(NOTIF_KEY, JSON.stringify(false));
+      updateToggleUI();
+    }
+  });
+
+  // startup initialization
+  function init() {
+    updateToggleUI();
+    // If notifications were enabled previously but permission now denied,
+    // turn off saved flag to avoid confusion
+    if(notifEnabled && 'Notification' in window && Notification.permission === 'denied') {
+      notifEnabled = false;
+      localStorage.setItem(NOTIF_KEY, JSON.stringify(false));
+      updateToggleUI();
+    }
+    render();
+  }
+
+  init();
+</script>
+</body>
+</html>

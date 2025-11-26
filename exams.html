@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Exam Planner | CampusConnect</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0e2340; --card:#143a60; --accent:#1c5a92; --muted:#aacff7; --white:#fff;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:'Poppins',sans-serif; background:linear-gradient(180deg,var(--bg),#07122a); color:var(--white); margin:0; padding:28px 12px; display:flex; justify-content:center;
+  }
+  .wrap{ width:100%; max-width:900px; }
+  header{text-align:center;margin-bottom:20px}
+  header h1{font-size:34px;margin:0}
+  header p{color:var(--muted); margin-top:6px}
+  .card{ background:var(--card); padding:18px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.35); margin-bottom:18px;}
+  .form-grid{ display:grid; grid-template-columns: 1fr 220px 160px; gap:12px; align-items:center;}
+  input[type="text"], input[type="date"], input[type="number"], select {
+    width:100%; padding:10px 12px; border-radius:10px; border:none; background:#ffffff10; color:var(--white); font-size:14px;
+  }
+  .btn{ background:var(--accent); color:white; border:none; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600;}
+  .btn:hover{opacity:.95}
+  .small { padding:8px 10px; border-radius:8px; border:none; font-weight:600; cursor:pointer; }
+  .list{ display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+  .exam-item{ display:flex; justify-content:space-between; gap:12px; padding:12px; border-radius:10px; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03);}
+  .left{ min-width:0; }
+  .subject{ font-weight:700; font-size:16px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+  .meta{ color:var(--muted); font-size:13px; margin-top:6px; }
+  .actions{ display:flex; gap:8px; align-items:center; }
+  .delete { background:#ff5b6a; color:white; }
+  .edit { background:#2a9df4; color:white; }
+  .suggest { background:#17a34a; color:white; }
+  h2{ text-align:center; margin:14px 0; font-size:22px;}
+  .empty { text-align:center; color:var(--muted); padding:18px; border-radius:8px; }
+  .summary { margin-bottom:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .summary .box { background:#071b36; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.03); min-width:200px; }
+  .suggest-panel { margin-top:12px; background:#07223d; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.03); }
+  .hint { color:var(--muted); font-size:13px; margin-top:8px; }
+  @media(max-width:780px){ .form-grid{ grid-template-columns: 1fr; } .summary{ flex-direction:column; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>📝 Exam Planner</h1>
+      <p>Plan smarter and stay prepared.</p>
+    </header>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:10px;">
+        <div style="color:var(--muted)">Set your available study hours per day (used to generate realistic study plan):</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="availableHours" type="number" min="0" max="24" style="width:100px; padding:8px;" />
+          <button id="saveHours" class="btn" style="padding:8px 12px;">Save</button>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <input id="examSubject" type="text" placeholder="Subject Name (e.g., DBMS)">
+        <input id="examDate" type="date" title="yyyy-mm-dd">
+        <input id="estHours" type="number" placeholder="Est. study hours" min="1" value="10">
+      </div>
+
+      <div style="margin-top:12px; display:flex; gap:10px;">
+        <button id="addExamBtn" class="btn">Add Exam</button>
+        <button id="clearExams" class="btn" style="background:#c0392b">Clear All</button>
+        <div class="hint">Tip: enter an estimate of hours it takes to fully prepare for that subject (used to compute hours/day).</div>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="box">
+        <strong>Upcoming Soon</strong>
+        <div id="urgentBox" style="margin-top:8px;color:var(--muted)">—</div>
+      </div>
+      <div class="box">
+        <strong>Next Exam</strong>
+        <div id="nextExamBox" style="margin-top:8px;color:var(--muted)">—</div>
+      </div>
+      <div class="box">
+        <strong>Suggested Daily Study</strong>
+        <div id="dailyPlanBox" style="margin-top:8px;color:var(--muted)">—</div>
+      </div>
+    </div>
+
+    <h2>Upcoming Exams</h2>
+
+    <div id="examsList" class="list card"></div>
+
+    <div class="suggest-panel" id="suggestPanel" style="display:none;">
+      <h3>Study Suggestion</h3>
+      <div id="suggestText"></div>
+    </div>
+
+    <div style="text-align:center; margin-top:14px;">
+      <a href="index.html" style="color:var(--muted); text-decoration:underline;">⬅ Back to Home</a>
+    </div>
+  </div>
+
+<script>
+/* Exam Planner JS
+   - Stores exams in localStorage (key 'campusconnect_exams_v1')
+   - Each exam = { id, subject, date (yyyy-mm-dd), estHours, createdAt }
+   - Shows suggestions using simple rule-based logic
+*/
+
+const STORAGE_KEY = 'campusconnect_exams_v1';
+const HOURS_KEY = 'campusconnect_daily_hours_v1';
+
+// DOM
+const examSubject = document.getElementById('examSubject');
+const examDate = document.getElementById('examDate');
+const estHours = document.getElementById('estHours');
+const addExamBtn = document.getElementById('addExamBtn');
+const examsList = document.getElementById('examsList');
+const clearExams = document.getElementById('clearExams');
+
+const urgentBox = document.getElementById('urgentBox');
+const nextExamBox = document.getElementById('nextExamBox');
+const dailyPlanBox = document.getElementById('dailyPlanBox');
+
+const suggestPanel = document.getElementById('suggestPanel');
+const suggestText = document.getElementById('suggestText');
+
+const availableHoursInput = document.getElementById('availableHours');
+const saveHoursBtn = document.getElementById('saveHours');
+
+// load
+let exams = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let availableHours = Number(localStorage.getItem(HOURS_KEY) || '3'); // default 3 hrs/day
+availableHoursInput.value = availableHours;
+
+// util: format date nicely
+function formatDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'});
+}
+function daysLeft(iso){
+  if(!iso) return Infinity;
+  const today = new Date(); const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const target = new Date(iso + 'T00:00:00');
+  const diff = target - t0;
+  return Math.ceil(diff / (1000*60*60*24));
+}
+function saveExams(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(exams)); }
+function saveAvailableHours(){ localStorage.setItem(HOURS_KEY, String(availableHours)); updateSummary(); }
+
+// add exam
+addExamBtn.addEventListener('click', ()=>{
+  const subject = examSubject.value.trim();
+  const date = examDate.value;
+  const hours = Number(estHours.value) || 10;
+  if(!subject){ alert('Enter subject'); return; }
+  if(!date){ alert('Choose exam date'); return; }
+  const id = Date.now();
+  exams.push({ id, subject, date, estHours: hours, createdAt: new Date().toISOString() });
+  saveExams();
+  examSubject.value=''; examDate.value=''; estHours.value='10';
+  render();
+});
+
+// clear all
+clearExams.addEventListener('click', ()=>{
+  if(!exams.length) return alert('No exams to clear');
+  if(confirm('Clear all exams?')){
+    exams = []; saveExams(); render();
+  }
+});
+
+// save available hours
+saveHoursBtn.addEventListener('click', ()=>{
+  const v = Number(availableHoursInput.value);
+  if(isNaN(v) || v < 0 || v > 24){ alert('Enter hours between 0 and 24'); return; }
+  availableHours = v; saveAvailableHours(); alert('Saved available hours: ' + availableHours + ' hrs/day'); render();
+});
+
+// render list
+function render(){
+  // sort exams by date ascending
+  exams.sort((a,b)=> (new Date(a.date) - new Date(b.date)));
+  examsList.innerHTML = '';
+  if(exams.length === 0){
+    examsList.innerHTML = '<div class="empty">No upcoming exams. Add one above.</div>';
+  } else {
+    exams.forEach(e => {
+      const dl = daysLeft(e.date);
+      const item = document.createElement('div'); item.className = 'exam-item';
+      const left = document.createElement('div'); left.className='left';
+      const subj = document.createElement('div'); subj.className='subject'; subj.textContent = e.subject;
+      const meta = document.createElement('div'); meta.className='meta';
+      meta.innerHTML = `Exam Date: <strong>${formatDate(e.date)}</strong> &nbsp; • &nbsp; Days left: <strong>${dl}</strong> &nbsp; • &nbsp; Est hours: <strong>${e.estHours}</strong>`;
+      left.appendChild(subj); left.appendChild(meta);
+
+      const actions = document.createElement('div'); actions.className = 'actions';
+      const suggestBtn = document.createElement('button'); suggestBtn.className='small suggest'; suggestBtn.textContent='Suggest Plan';
+      const editBtn = document.createElement('button'); editBtn.className='small edit'; editBtn.textContent='Edit';
+      const delBtn = document.createElement('button'); delBtn.className='small delete'; delBtn.textContent='Delete';
+      actions.appendChild(suggestBtn); actions.appendChild(editBtn); actions.appendChild(delBtn);
+
+      item.appendChild(left); item.appendChild(actions);
+      examsList.appendChild(item);
+
+      // Suggest button shows suggestion panel
+      suggestBtn.addEventListener('click', ()=> showSuggestion(e) );
+
+      // Edit button opens inline edit
+      editBtn.addEventListener('click', ()=> startEdit(e.id, item));
+
+      // Delete
+      delBtn.addEventListener('click', ()=>{
+        if(confirm('Delete exam: ' + e.subject + '?')){
+          exams = exams.filter(x=> x.id !== e.id);
+          saveExams(); render();
+        }
+      });
+
+      // highlight urgent: if daysLeft < 0 -> passed, if daysLeft <=3 -> urgent
+      if(dl < 0){
+        subj.style.color = '#ff6b6b';
+        meta.innerHTML += ' &nbsp; <span style="color:#ff6b6b; font-weight:700">⛔ Deadline Passed</span>';
+      } else if(dl === 0){
+        subj.style.color = '#ffb703';
+        meta.innerHTML += ' &nbsp; <span style="color:#ffb703; font-weight:700">⚠ Today</span>';
+      } else if(dl <= 3){
+        subj.style.color = '#ffb703';
+      } else {
+        // normal
+      }
+    });
+  }
+  updateSummary();
+}
+
+// Inline edit row (replace contents of item)
+function startEdit(id, itemEl){
+  const exam = exams.find(x=> x.id === id);
+  if(!exam) return;
+  itemEl.innerHTML = '';
+
+  const left = document.createElement('div'); left.style.display='flex'; left.style.gap='12px'; left.style.alignItems='center';
+  const subjInput = document.createElement('input'); subjInput.type='text'; subjInput.value = exam.subject; subjInput.style.padding='8px'; subjInput.style.borderRadius='8px';
+  const dateInput = document.createElement('input'); dateInput.type='date'; dateInput.value = exam.date; dateInput.style.padding='8px'; dateInput.style.borderRadius='8px';
+  const hoursInput = document.createElement('input'); hoursInput.type='number'; hoursInput.value = exam.estHours; hoursInput.min=1; hoursInput.style.width='110px'; hoursInput.style.padding='8px'; hoursInput.style.borderRadius='8px';
+
+  left.appendChild(subjInput); left.appendChild(dateInput); left.appendChild(hoursInput);
+
+  const actions = document.createElement('div'); actions.className='actions';
+  const saveBtn = document.createElement('button'); saveBtn.className='small save'; saveBtn.textContent='Save';
+  const cancelBtn = document.createElement('button'); cancelBtn.className='small'; cancelBtn.textContent='Cancel';
+
+  actions.appendChild(saveBtn); actions.appendChild(cancelBtn);
+  itemEl.appendChild(left); itemEl.appendChild(actions);
+
+  saveBtn.addEventListener('click', ()=>{
+    const s = subjInput.value.trim(); const d = dateInput.value; const h = Number(hoursInput.value) || 10;
+    if(!s || !d){ alert('Subject and date required'); return; }
+    exam.subject = s; exam.date = d; exam.estHours = h; exam.updatedAt = new Date().toISOString();
+    saveExams(); render();
+  });
+  cancelBtn.addEventListener('click', ()=> render());
+}
+
+// Suggestion generation (simple rule-based)
+// Logic:
+//  - days = daysLeft
+//  - est = estHours
+//  - available = availableHours (user setting)
+//  - If days <= 0: show passed/today message
+//  - Otherwise hours/day needed = ceil(est / days)
+//  - If hours/day needed > available => recommend increase daily hours or start now and break into focused sessions
+//  - Provide sample schedule with chunks (morning/afternoon/evening)
+function showSuggestion(exam){
+  const dl = daysLeft(exam.date);
+  const est = Number(exam.estHours) || 10;
+  suggestPanel.style.display = 'block';
+  let text = `<strong>${exam.subject} — Exam ${formatDate(exam.date)} (${dl} day(s) left)</strong><br><br>`;
+
+  if(dl < 0){
+    text += `<span style="color:#ff6b6b; font-weight:700">This exam date has passed.</span><br>`;
+    text += `If you still need to revise, create a short revision plan: 2–3 focused sessions of 25–40 minutes with breaks.`;
+  } else if(dl === 0){
+    text += `<span style="color:#ffb703; font-weight:700">Exam is Today!</span><br>`;
+    text += `Suggested plan: light revision only — 2 focused sessions (45–60 min) on high-yield topics, rest and sleep well.`;
+  } else {
+    const hrsPerDayNeeded = Math.ceil(est / dl);
+    text += `Estimated study time required: <strong>${est} hours</strong>.<br>`;
+    text += `Days left: <strong>${dl}</strong> days.<br><br>`;
+    text += `Recommended study: <strong>${hrsPerDayNeeded} hour(s) per day</strong> (total ${est} hrs) to finish before exam.<br>`;
+
+    if(hrsPerDayNeeded > availableHours){
+      text += `<br><span style="color:#ff8a65; font-weight:700">Warning:</span> your available hours per day is <strong>${availableHours} hrs</strong> — below the required ${hrsPerDayNeeded} hr/day. Consider: <ul>
+                <li>Start earlier and add more short sessions (25–40 min)</li>
+                <li>Increase daily study time on weekends</li>
+                <li>Prioritize high-weight topics first</li>
+                </ul>`;
+    } else {
+      text += `<br>Your available hours per day (${availableHours} hrs) are enough to finish if you study consistently.`;
+    }
+
+    // Create a simple day-by-day plan: assign whole hours per day until est consumed
+    let remaining = est;
+    text += `<br><br><strong>Sample study schedule (per day):</strong><br><ol>`;
+    for(let d=1; d<=Math.min(dl, 14); d++){ // show up to next 14 days plan
+      const take = Math.min(hrsPerDayNeeded, remaining);
+      if(take <= 0) { text += `<li>Day ${d}: Review / Practice questions</li>`; continue; }
+      text += `<li>Day ${d} (in ${d-1} day(s)): Study ~ ${take} hour(s) — focus on specific subtopics (split into 2–3 sessions)</li>`;
+      remaining -= take;
+    }
+    if(remaining > 0){
+      text += `<li>Remaining after shown days: ${remaining} hour(s) — spread over weekend or extend daily hours.</li>`;
+    } else {
+      text += `<li>All estimated hours scheduled. Use last day for revision & mock test.</li>`;
+    }
+    text += `</ol>`;
+
+    // Quick tips
+    text += `<br><strong>Quick tips:</strong><ul>
+              <li>Use Pomodoro: 25–30 min focus + 5 min break</li>
+              <li>Do active recall & past questions</li>
+              <li>Make one-page notes for last-minute revision</li>
+              </ul>`;
+  }
+
+  suggestText.innerHTML = text;
+  // scroll to panel
+  suggestPanel.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+// Update top summary boxes
+function updateSummary(){
+  // next exam
+  if(exams.length === 0){
+    nextExamBox.textContent = '—';
+    dailyPlanBox.textContent = '—';
+    urgentBox.textContent = '—';
+    return;
+  }
+  // find next (smallest daysLeft >= 0), if none, pick earliest (past)
+  exams.sort((a,b)=> new Date(a.date) - new Date(b.date));
+  const next = exams[0];
+  nextExamBox.innerHTML = `${next.subject} — ${formatDate(next.date)} (${daysLeft(next.date)} day(s) left)`;
+
+  // urgent: exams within 3 days (and not passed)
+  const urgent = exams.filter(e => daysLeft(e.date) >= 0 && daysLeft(e.date) <= 3);
+  if(urgent.length === 0) urgentBox.innerHTML = 'No exams within 3 days';
+  else {
+    urgentBox.innerHTML = urgent.map(u => `${u.subject} (in ${daysLeft(u.date)} day(s))`).join('<br>');
+  }
+
+  // Suggested daily plan summary: compute total remaining study hours for next 7 days across exams (simple sum)
+  let totalEst = 0;
+  let totalDaysWeighted = 0;
+  exams.forEach(e => {
+    const dl = daysLeft(e.date);
+    if(dl >= 0) {
+      totalEst += Number(e.estHours || 0);
+      totalDaysWeighted = Math.max(totalDaysWeighted, dl);
+    }
+  });
+  if(totalEst === 0) {
+    dailyPlanBox.textContent = '—';
+  } else {
+    // a simple suggestion: divide totalEst by min(availableHours*7, totalDaysWeighted*availableHours)
+    const daysToConsider = Math.max(1, Math.min(totalDaysWeighted || 7, 14)); // at most 14 days
+    const needPerDay = Math.ceil(totalEst / daysToConsider);
+    dailyPlanBox.textContent = `${needPerDay} hr/day for next ${daysToConsider} day(s) (total ${totalEst} hrs needed)`;
+  }
+}
+
+// initial render on load
+render();
+
+// show suggestion when page loads for nearest exam automatically? we won't auto-show to avoid surprise
+// But you can quickly click "Suggest Plan" for any exam
+
+// helper: when user double-click on nextExamBox => show suggestion for next exam
+nextExamBox.addEventListener('dblclick', ()=>{
+  if(exams.length) showSuggestion(exams[0]);
+});
+</script>
+</body>
+</html>
