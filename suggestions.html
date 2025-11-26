@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Smart Suggestions | CampusConnect</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Poppins',sans-serif;background:#f2f6fb;margin:0;color:#0b2135;padding:28px;}
+  .wrap{max-width:950px;margin:0 auto;}
+  header{ text-align:center;margin-bottom:18px;}
+  h1{margin:0;font-size:28px}
+  .card{background:#fff;padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(10,30,60,0.06); margin-bottom:14px;}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .btn{background:#1c5a92;color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+  .small{padding:8px 10px;border-radius:8px;border:1px solid #e6eef9;background:#f8fbff}
+  .section-title{font-weight:700;margin-bottom:8px}
+  pre{background:#f6f9ff;padding:12px;border-radius:8px;overflow:auto}
+  ul{margin:0;padding-left:18px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:820px){ .grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>CampusConnect — Smart Study Suggestions</h1>
+      <div style="color:#4b6b86">This tool analyses your timetable, assignments & exams and generates a prioritized study plan.</div>
+    </header>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <strong>Data sources:</strong> Timetable, Assignments, Exams, Daily available hours (from your app)
+        </div>
+        <div>
+          <button id="runBtn" class="btn">Analyze & Generate Plan</button>
+          <button id="refreshBtn" class="small">Reload data</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="summaryCard" class="card" style="display:none"></div>
+
+    <div id="planCard" class="card" style="display:none"></div>
+
+    <div id="detailsCard" class="card" style="display:none"></div>
+
+  </div>
+
+<script>
+/* Smart Suggestions (rule-based)
+   Reads keys:
+    - campusconnect_timetable_v1
+    - assignments_v1
+    - campusconnect_exams_v1
+    - campusconnect_daily_hours_v1
+*/
+
+const TIMETABLE_KEY = 'campusconnect_timetable_v1';
+const ASSIGNMENTS_KEY = 'assignments_v1';
+const EXAMS_KEY = 'campusconnect_exams_v1';
+const HOURS_KEY = 'campusconnect_daily_hours_v1';
+
+const runBtn = document.getElementById('runBtn');
+const refreshBtn = document.getElementById('refreshBtn');
+const summaryCard = document.getElementById('summaryCard');
+const planCard = document.getElementById('planCard');
+const detailsCard = document.getElementById('detailsCard');
+
+function loadData(){
+  const timetable = JSON.parse(localStorage.getItem(TIMETABLE_KEY) || '[]');
+  const assignments = JSON.parse(localStorage.getItem(ASSIGNMENTS_KEY) || '[]');
+  const exams = JSON.parse(localStorage.getItem(EXAMS_KEY) || '[]');
+  const availableHours = Number(localStorage.getItem(HOURS_KEY) || '3'); // default 3 hr/day
+
+  return { timetable, assignments, exams, availableHours };
+}
+
+// helper date utils
+function daysLeft(iso){
+  if(!iso) return Infinity;
+  const today = new Date(); const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const target = new Date(iso + 'T00:00:00');
+  return Math.ceil((target - t0)/(1000*60*60*24));
+}
+function fmtDate(iso){
+  if(!iso) return 'N/A';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString();
+}
+
+// estimateDailyFreeHours - same heuristic as before
+function estimateDailyFreeHours(timetable, availableHoursSetting){
+  const classesCount = timetable.length || 0;
+  const avgClassesPerDay = Math.max(0, Math.round(classesCount / 6));
+  const heuristicAvailable = Math.max(1, Math.round(Math.max(0, 24 - 8 - avgClassesPerDay - 2)));
+  return availableHoursSetting > 0 ? availableHoursSetting : heuristicAvailable;
+}
+
+// PRIORITIZE: now uses types 'assignments' and 'exams' (plural)
+function prioritizeTasks(assignments, exams){
+  const tasks = [];
+
+  // assignments (plural)
+  assignments.forEach(a=>{
+    const due = a.due || a.dueDate || a.dueDateISO || a.dueDate;
+    const done = !!a.done;
+    const dl = daysLeft(due);
+    const urgency = done ? 1000 : (dl < 0 ? 10 : (dl === 0 ? 1 : (dl <= 2 ? 2 : (dl <= 7 ? 3 : 6))));
+    tasks.push({
+      type:'assignments', title: a.topic || a.subject || 'Assignments', due, daysLeft: dl, urgency, meta: a
+    });
+  });
+
+  // exams (plural)
+  exams.forEach(e=>{
+    const dl = daysLeft(e.date);
+    const est = Number(e.estHours || e.hours || 10);
+    const base = dl < 0 ? 10 : (dl === 0 ? 1 : (dl <= 3 ? 2 : (dl <= 10 ? 3 : 5)));
+    const urgency = Math.max(1, Math.round(base * (1 + est/20)));
+    tasks.push({
+      type:'exams', title: e.subject || 'Exams', due: e.date, daysLeft: dl, urgency, estHours: est, meta:e
+    });
+  });
+
+  tasks.sort((a,b)=>{
+    if(a.urgency !== b.urgency) return a.urgency - b.urgency;
+    return (a.daysLeft || 9999) - (b.daysLeft || 9999);
+  });
+  return tasks;
+}
+
+function buildPlan(tasks, dailyHours, daysWindow = 7){
+  const plan = [];
+  const remaining = tasks.map(t=>{
+    if(t.type === 'exams') return {id: t.title + '_' + (t.meta.id||''), type:'exams', title:t.title, remainingHours: Number(t.estHours || 10), daysLeft: t.daysLeft};
+    if(t.type === 'assignments') return {id: t.title + '_' + (t.meta.id||''), type:'assignments', title:t.title, remainingHours: 2, daysLeft: t.daysLeft};
+    return {id:t.title, type:t.type, title:t.title, remainingHours:2, daysLeft:t.daysLeft};
+  });
+
+  for(let d=0; d<daysWindow; d++){
+    const day = { dayIndex: d, date: new Date(Date.now() + d*24*3600*1000).toISOString().slice(0,10), slots: [], hoursAssigned:0 };
+    let remainingHours = dailyHours;
+
+    for(let i=0;i<remaining.length && remainingHours>0;i++){
+      const t = remaining[i];
+      if(t.remainingHours <= 0) continue;
+      const chunk = Math.min( Math.ceil(Math.min(2, t.remainingHours)), remainingHours );
+      if(chunk <= 0) continue;
+      t.remainingHours -= chunk;
+      t.lastAssignedDay = day.date;
+      day.slots.push({taskId: t.id, title: t.title, hours: chunk, type: t.type});
+      day.hoursAssigned += chunk;
+      remainingHours -= chunk;
+    }
+
+    plan.push(day);
+  }
+
+  const unfinished = remaining.filter(r=> r.remainingHours > 0);
+  return {plan, unfinished};
+}
+
+function renderOutput(summary, plan, tasks){
+  summaryCard.style.display = 'block';
+  summaryCard.innerHTML = `
+    <div class="section-title">Quick Summary</div>
+    <div><strong>Available study hours/day:</strong> ${summary.dailyHours} hrs</div>
+    <div><strong>Upcoming exams:</strong> ${summary.upcomingExams.length} (next: ${summary.nextExamText})</div>
+    <div><strong>Pending assignments:</strong> ${summary.pendingAssignments} (due soon: ${summary.dueSoonCount})</div>
+    <div style="margin-top:8px;color:#2f6f44"><strong>Top priorities:</strong> ${summary.topPriority.map(t=>t.title).slice(0,4).join(' • ')}</div>
+  `;
+
+  planCard.style.display = 'block';
+  planCard.innerHTML = '<div class="section-title">7-day suggested plan</div>';
+
+  const daysHtml = plan.plan.map(day=>{
+    if(day.slots.length === 0) return `<div style="margin-bottom:10px"><strong>${day.date}</strong>: Free / light revision</div>`;
+    const slots = day.slots.map(s=> `<li>${s.title} — ${s.hours} hr(s)</li>`).join('');
+    return `<div style="margin-bottom:12px"><strong>${day.date}</strong>: <ul style="margin-top:6px">${slots}</ul></div>`;
+  }).join('');
+  planCard.innerHTML += daysHtml;
+
+  if(plan.unfinished.length > 0){
+    planCard.innerHTML += `<div style="margin-top:12px;color:#d64545"><strong>Unfinished hours after 7 days:</strong><br>${plan.unfinished.map(u=> u.title + ' ('+u.remainingHours+' hr left)').join('<br>')}</div>`;
+  } else {
+    planCard.innerHTML += `<div style="margin-top:12px;color:#2f6f44"><strong>All estimated hours scheduled.</strong> Use final day for mock test & revision.</div>`;
+  }
+
+  detailsCard.style.display = 'block';
+  detailsCard.innerHTML = `<div class="section-title">Task Priorities (ordered)</div>` + tasks.map(t=>{
+    const dueStr = t.due ? ` (in ${t.daysLeft} day(s))` : '';
+    return `<div style="padding:8px 0;border-bottom:1px dashed #eef6ff"><strong>${t.title}</strong> — ${t.type.toUpperCase()} ${dueStr}</div>`;
+  }).join('');
+}
+
+function analyzeAndSuggest(){
+  const {timetable, assignments, exams, availableHours} = loadData();
+  const dailyHours = estimateDailyFreeHours(timetable, availableHours);
+  const pendingAssignments = (assignments || []).filter(a=> !a.done);
+  const upcomingExams = (exams || []).map(e=>({ ...e, dl: daysLeft(e.date) })).sort((a,b)=> (a.dl - b.dl));
+  const tasks = prioritizeTasks(pendingAssignments, exams || []);
+  const plan = buildPlan(tasks, Math.max(1,dailyHours), 7);
+
+  const summary = {
+    dailyHours,
+    pendingAssignments: pendingAssignments.length,
+    dueSoonCount: pendingAssignments.filter(a=> daysLeft(a.due) <= 2 && !a.done).length,
+    upcomingExams: upcomingExams,
+    nextExamText: upcomingExams.length ? (upcomingExams[0].subject + ' in ' + upcomingExams[0].dl + ' day(s)') : '—',
+    topPriority: tasks.slice(0,6)
+  };
+
+  renderOutput(summary, plan, tasks);
+}
+
+runBtn.addEventListener('click', () => analyzeAndSuggest());
+refreshBtn.addEventListener('click', () => {
+  location.reload();
+});
+</script>
+</body>
+</html>
